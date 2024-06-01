@@ -17,5 +17,8 @@ X = df[['LotArea', 'OverallQual', 'OverallCond', 'YearBuilt']]
 y = df['HighPrice']
 
 svm_classifier = svm.SVC(kernel='linear')
-result = svm_classifier.fit(X,y)
-print(result.predict(X))
+# result = svm_classifier.fit(X,y)
+# print(result.predict(X))
+
+score = cross_val_score(svm_classifier, X, y, cv=5)
+print(score)
