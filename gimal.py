@@ -1,25 +1,33 @@
 import pandas as pd
-from sklearn.preprocessing import StandardScaler
-from sklearn.cluster import KMeans
-from scipy.spatial.distance import cdist
+from sklearn.model_selection import train_test_split
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
 
-data = pd.read_csv('happiness2019.csv')
-data = data.dropna()
+data = pd.read_csv('bank-market.csv')
 
-scaler = StandardScaler()
-scaled_features = scaler.fit_transform(data.iloc[:, 1:])
+selected_vars = ["age", "job", "marital", "education", "default", "balance", "housing", "loan", "y"]
+data = data[selected_vars]
 
-kmeans = KMeans(n_clusters=3, random_state=123, n_init=10)
-data['cluster'] = kmeans.fit_predict(scaled_features)
+categorical_vars = ["job", "marital", "education", "default", "housing", "loan", "y"]
+for var in categorical_vars:
+    data[var] = data[var].astype('category').cat.codes
 
-our_country = "South Korea"
-our_cluster = data.loc[data['Country name'] == our_country, 'cluster'].values[0]
-same_cluster_countries = data[data['cluster'] == our_cluster].copy()
+train_data, test_data = train_test_split(data, test_size=0.25, random_state=123)
 
-distances = cdist(scaled_features[data['cluster'] == our_cluster], 
-                  scaled_features[data['Country name'] == our_country].reshape(1, -1), 
-                  metric='euclidean').flatten()
+X_train = train_data.drop('y', axis=1)
+y_train = train_data['y']
+X_test = test_data.drop('y', axis=1)
+y_test = test_data['y']
 
-same_cluster_countries = same_cluster_countries.assign(distance=distances)
-nearest_country = same_cluster_countries[same_cluster_countries['Country name'] != our_country].sort_values(by='distance').iloc[0]['Country name']
-print(nearest_country)
+tree_model = DecisionTreeClassifier(random_state=123)
+tree_model.fit(X_train, y_train)
+
+tree_pred = tree_model.predict(X_test)
+
+conf_matrix = confusion_matrix(y_test, tree_pred)
+accuracy = accuracy_score(y_test, tree_pred)
+class_report = classification_report(y_test, tree_pred)
+
+print("Confusion Matrix:\n", conf_matrix)
+print("\nAccuracy:", accuracy)
+print("\nClassification Report:\n", class_report)
