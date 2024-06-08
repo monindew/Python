@@ -1,25 +1,41 @@
 import pandas as pd
-from sklearn.preprocessing import StandardScaler
-from sklearn.cluster import KMeans
-from scipy.spatial.distance import cdist
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.neural_network import MLPClassifier
+from sklearn.metrics import confusion_matrix, classification_report, roc_curve, auc
+import matplotlib.pyplot as plt
 
-data = pd.read_csv('happiness2019.csv')
-data = data.dropna()
+dividend_data = pd.read_csv("dividend.csv")
 
-scaler = StandardScaler()
-scaled_features = scaler.fit_transform(data.iloc[:, 1:])
+X = dividend_data.iloc[:, 1:6]
+y = dividend_data['dividend']
 
-kmeans = KMeans(n_clusters=3, random_state=123, n_init=10)
-data['cluster'] = kmeans.fit_predict(scaled_features)
+scaler = MinMaxScaler()
+X_scaled = scaler.fit_transform(X)
 
-our_country = "South Korea"
-our_cluster = data.loc[data['Country name'] == our_country, 'cluster'].values[0]
-same_cluster_countries = data[data['cluster'] == our_cluster].copy()
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.25, random_state=123)
 
-distances = cdist(scaled_features[data['cluster'] == our_cluster], 
-                  scaled_features[data['Country name'] == our_country].reshape(1, -1), 
-                  metric='euclidean').flatten()
+nn_model = MLPClassifier(hidden_layer_sizes=(1,), max_iter=1000, random_state=123)
+nn_model.fit(X_train, y_train)
+nn_pred = nn_model.predict(X_test)
+nn_pred_prob = nn_model.predict_proba(X_test)[:, 1]
 
-same_cluster_countries = same_cluster_countries.assign(distance=distances)
-nearest_country = same_cluster_countries[same_cluster_countries['Country name'] != our_country].sort_values(by='distance').iloc[0]['Country name']
-print(nearest_country)
+conf_matrix = confusion_matrix(y_test, nn_pred)
+class_report = classification_report(y_test, nn_pred)
+
+print("Confusion Matrix:\n", conf_matrix)
+print("\nClassification Report:\n", class_report)
+
+fpr, tpr, _ = roc_curve(y_test, nn_pred_prob)
+roc_auc = auc(fpr, tpr)
+
+plt.figure()
+plt.plot(fpr, tpr, color='darkorange', lw=2, label='ROC curve (area = %0.2f)' % roc_auc)
+plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver Operating Characteristic')
+plt.legend(loc="lower right")
+plt.show()
